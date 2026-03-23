@@ -1,0 +1,49 @@
+# Ridgecrest Seismic Sequence Analysis Configuration
+
+study_region:
+  name: "2019 Ridgecrest M7.1 Sequence"
+  minlatitude: 35.0
+  maxlatitude: 36.5
+  minlongitude: -118.5
+  maxlongitude: -116.5
+
+mainshock:
+  event_id: "ci38457511"
+  magnitude: 7.1
+  latitude: 35.770
+  longitude: -117.599
+  depth_km: 8.0
+  time: "2019-07-06T03:19:53Z"
+  strike_deg: 322
+  dip_deg: 81
+  rake_deg: 177
+
+catalog:
+  starttime: "2019-07-01"
+  endtime: "2020-01-01"
+  minmagnitude: 1.5
+  api_url: "https://earthquake.usgs.gov/fdsnws/event/1/query"
+
+analysis:
+  omori:
+    dt_bin_days: 1.0
+    n_bootstrap: 500
+  bvalue:
+    spatial_bin_deg: 0.1
+    min_events_per_bin: 30
+  cross_section:
+    profile_azimuth_deg: 52
+    half_width_km: 15.0
+
+animation:
+  fps: 10
+  frames_per_day: 1
+  dpi: 150
+  depth_colormap: "RdYlBu_r"
+  depth_vmin: 0.0
+  depth_vmax: 25.0
+
+paths:
+  data_dir: "data"
+  results_dir: "results"
+  faults_url: "https://earthquake.usgs.gov/static/lfs/nshm/qfaults/Qfaults_GIS_2021_new.zip"

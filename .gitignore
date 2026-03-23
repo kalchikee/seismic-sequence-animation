@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (large files not tracked)
+data/*.gpkg
+data/*.zip
+data/*.csv
+data/*.shp
+data/*.dbf
+data/*.shx
+data/*.prj
+
+# Results (generated outputs)
+results/*.mp4
+results/frames/*.png
+results/*.png
+results/*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
