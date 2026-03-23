@@ -1,0 +1,5 @@
+title: "Seismic Sequence Animation"
+description: "Spatiotemporal analysis and animation of the 2019 Ridgecrest M7.1 aftershock sequence using the USGS ComCat API"
+theme: jekyll-theme-cayman
+show_downloads: true
+google_analytics:
