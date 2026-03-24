@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2019 Ridgecrest M7.1 — Seismic Sequence Analysis</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; }
+
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2.5rem 2rem 2rem;
+    border-bottom: 1px solid #21262d;
+  }
+  header h1 { font-size: 2rem; color: #f0f6fc; font-weight: 700; }
+  header p { margin-top: 0.5rem; color: #8b949e; font-size: 1rem; max-width: 700px; }
+  .badges { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .badge {
+    padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge-blue  { background: #1f6feb; color: #fff; }
+  .badge-green { background: #238636; color: #fff; }
+  .badge-red   { background: #da3633; color: #fff; }
+  .badge-orange{ background: #d29922; color: #fff; }
+
+  .status-bar {
+    background: #161b22; border-bottom: 1px solid #21262d;
+    padding: 0.6rem 2rem; display: flex; gap: 2rem; flex-wrap: wrap;
+  }
+  .stat { display: flex; flex-direction: column; }
+  .stat-label { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-size: 1.1rem; font-weight: 700; color: #58a6ff; }
+
+  .layout { display: grid; grid-template-columns: 1fr 380px; height: calc(100vh - 200px); min-height: 500px; }
+  #map { width: 100%; height: 100%; }
+
+  .sidebar {
+    background: #161b22; border-left: 1px solid #21262d;
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .sidebar-section { padding: 1rem; border-bottom: 1px solid #21262d; }
+  .sidebar-section h3 { font-size: 0.85rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+
+  #omori-chart, #depth-chart { height: 200px; }
+
+  .controls { display: flex; flex-direction: column; gap: 0.5rem; }
+  label { font-size: 0.85rem; color: #c9d1d9; }
+  input[type=range] { width: 100%; accent-color: #58a6ff; }
+  select {
+    width: 100%; padding: 0.3rem 0.5rem; background: #21262d;
+    border: 1px solid #30363d; color: #c9d1d9; border-radius: 4px;
+    font-size: 0.85rem;
+  }
+
+  .legend { font-size: 0.78rem; }
+  .legend-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+  .legend-circle {
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.3);
+    display: inline-block; flex-shrink: 0;
+  }
+  .depth-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
+  .info-panel { padding: 1rem; font-size: 0.82rem; color: #8b949e; line-height: 1.6; }
+
+  #loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(13,17,23,0.95); padding: 2rem 3rem; border-radius: 8px;
+    border: 1px solid #30363d; text-align: center; z-index: 9999;
+  }
+  #loading h2 { color: #58a6ff; margin-bottom: 0.5rem; }
+  #loading p { color: #8b949e; font-size: 0.9rem; }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid #21262d;
+    border-top-color: #58a6ff; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 1rem auto 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: 60vh 1fr; }
+    header h1 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h2>Loading Ridgecrest Catalog</h2>
+  <p>Fetching seismicity from USGS ComCat API…</p>
+  <div class="spinner"></div>
+</div>
+
+<header>
+  <h1>2019 Ridgecrest M7.1 — Seismic Sequence Analysis</h1>
+  <p>Spatiotemporal analysis of California's largest earthquake in 20 years.
+     Live data from the USGS Earthquake Hazards Program.</p>
+  <div class="badges">
+    <span class="badge badge-blue">Python</span>
+    <span class="badge badge-green">USGS ComCat API</span>
+    <span class="badge badge-red">Omori Decay</span>
+    <span class="badge badge-orange">Eastern California Shear Zone</span>
+    <a href="https://github.com/kalchikee/seismic-sequence-animation"
+       style="background:#30363d;color:#c9d1d9;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-decoration:none;">
+      ⭐ GitHub
+    </a>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="stat"><span class="stat-label">Mainshock</span><span class="stat-value">M7.1 · Jul 6, 2019</span></div>
+  <div class="stat"><span class="stat-label">Location</span><span class="stat-value">35.77°N 117.60°W</span></div>
+  <div class="stat"><span class="stat-label">Mechanism</span><span class="stat-value">Right-lateral strike-slip</span></div>
+  <div class="stat"><span class="stat-label">Total events loaded</span><span class="stat-value" id="total-count">—</span></div>
+  <div class="stat"><span class="stat-label">Displayed</span><span class="stat-value" id="shown-count">—</span></div>
+</div>
+
+<div class="layout">
+  <div id="map"></div>
+
+  <div class="sidebar">
+
+    <div class="sidebar-section">
+      <h3>Filters</h3>
+      <div class="controls">
+        <label>Min Magnitude: <strong id="mag-val">1.5</strong></label>
+        <input type="range" id="mag-slider" min="1" max="5" step="0.5" value="1.5">
+
+        <label>Depth colormap</label>
+        <select id="color-mode">
+          <option value="depth">Color by depth</option>
+          <option value="time">Color by time (days after mainshock)</option>
+          <option value="magnitude">Color by magnitude</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Depth Legend (km)</h3>
+      <div class="legend">
+        <div class="legend-row"><span class="depth-swatch" style="background:#d73027"></span> 0–5 km (very shallow)</div>
+        <div class="legend-row"><span class="depth-swatch" style="background:#fc8d59"></span> 5–10 km</div>
+        <div class="legend-row"><span class="depth-swatch" style="background:#fee090"></span> 10–15 km</div>
+        <div class="legend-row"><span class="depth-swatch" style="background:#91bfdb"></span> 15–20 km</div>
+        <div class="legend-row"><span class="depth-swatch" style="background:#4575b4"></span> &gt;20 km (deep)</div>
+      </div>
+      <div class="legend" style="margin-top:0.75rem;">
+        <strong style="font-size:0.78rem;color:#8b949e;">Magnitude (circle size)</strong><br>
+        <div class="legend-row" style="margin-top:0.4rem;">
+          <span class="legend-circle" style="width:6px;height:6px;background:#aaa"></span> M2
+          <span class="legend-circle" style="width:10px;height:10px;background:#aaa;margin-left:0.5rem"></span> M3
+          <span class="legend-circle" style="width:16px;height:16px;background:#aaa;margin-left:0.5rem"></span> M4
+          <span class="legend-circle" style="width:24px;height:24px;background:#aaa;margin-left:0.5rem"></span> M5+
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Omori Decay Curve</h3>
+      <div id="omori-chart"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Depth Distribution</h3>
+      <div id="depth-chart"></div>
+    </div>
+
+    <div class="info-panel">
+      <strong style="color:#c9d1d9;">About this project</strong><br>
+      The Ridgecrest sequence activated ~50 km of unmapped fault strands in the
+      Eastern California Shear Zone. This pipeline queries the USGS FDSN API,
+      fits Omori decay parameters, maps b-value spatial variations, and produces
+      depth cross-sections revealing the seismogenic zone geometry.
+      <br><br>
+      <a href="https://github.com/kalchikee/seismic-sequence-animation" style="color:#58a6ff;">
+        View source code →
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Map setup ────────────────────────────────────────────────────────────────
+const map = L.map('map', { center: [35.77, -117.6], zoom: 9, preferCanvas: true });
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  maxZoom: 18,
+}).addTo(map);
+
+// Mainshock star
+const mainshockIcon = L.divIcon({
+  html: '<div style="font-size:24px;line-height:1;text-shadow:0 0 4px #fff;">★</div>',
+  className: '', iconAnchor: [12, 12],
+});
+L.marker([35.770, -117.599], { icon: mainshockIcon })
+  .addTo(map)
+  .bindPopup('<strong>M7.1 Mainshock</strong><br>2019-07-06 03:19 UTC<br>Depth: 8.0 km<br>Right-lateral strike-slip');
+
+let allEvents = [];
+let circles = [];
+
+// ── Color functions ──────────────────────────────────────────────────────────
+function depthColor(d) {
+  if (d < 5)  return '#d73027';
+  if (d < 10) return '#fc8d59';
+  if (d < 15) return '#fee090';
+  if (d < 20) return '#91bfdb';
+  return '#4575b4';
+}
+
+function timeColor(days) {
+  const t = Math.min(Math.max(days / 180, 0), 1);
+  const r = Math.round(255 * (1 - t));
+  const b = Math.round(255 * t);
+  return `rgb(${r},50,${b})`;
+}
+
+function magColor(m) {
+  if (m < 2) return '#4393c3';
+  if (m < 3) return '#92c5de';
+  if (m < 4) return '#fddbc7';
+  if (m < 5) return '#f4a582';
+  return '#d6604d';
+}
+
+function magRadius(m) {
+  return Math.max(3, Math.pow(10, 0.55 * (m - 1.0)));
+}
+
+// ── Fetch data ───────────────────────────────────────────────────────────────
+async function fetchCatalog() {
+  const url = new URL('https://earthquake.usgs.gov/fdsnws/event/1/query');
+  url.searchParams.set('format', 'geojson');
+  url.searchParams.set('starttime', '2019-07-01');
+  url.searchParams.set('endtime', '2020-01-01');
+  url.searchParams.set('minmagnitude', '1.5');
+  url.searchParams.set('minlatitude', '35.0');
+  url.searchParams.set('maxlatitude', '36.5');
+  url.searchParams.set('minlongitude', '-118.5');
+  url.searchParams.set('maxlongitude', '-116.5');
+  url.searchParams.set('limit', '10000');
+  url.searchParams.set('orderby', 'time');
+
+  const resp = await fetch(url);
+  const data = await resp.json();
+  return data.features;
+}
+
+function parseEvents(features) {
+  const mainshockTime = new Date('2019-07-06T03:19:53Z').getTime();
+  return features.map(f => {
+    const p = f.properties;
+    const c = f.geometry.coordinates;
+    return {
+      id: f.id,
+      time: new Date(p.time),
+      days: (p.time - mainshockTime) / 86400000,
+      mag: p.mag,
+      depth: c[2],
+      lat: c[1],
+      lon: c[0],
+      place: p.place || '',
+    };
+  }).filter(e => e.mag != null && e.depth != null);
+}
+
+function renderMap(events) {
+  circles.forEach(c => map.removeLayer(c));
+  circles = [];
+  const mode = document.getElementById('color-mode').value;
+  const minMag = parseFloat(document.getElementById('mag-slider').value);
+  const filtered = events.filter(e => e.mag >= minMag);
+
+  // Sort shallow-first so large circles don't cover small ones
+  filtered.sort((a, b) => b.depth - a.depth);
+
+  filtered.forEach(e => {
+    const color = mode === 'depth' ? depthColor(e.depth)
+                : mode === 'time'  ? timeColor(e.days)
+                : magColor(e.mag);
+    const c = L.circleMarker([e.lat, e.lon], {
+      radius: magRadius(e.mag),
+      fillColor: color,
+      color: 'rgba(0,0,0,0.3)',
+      weight: 0.5,
+      fillOpacity: 0.7,
+    }).bindPopup(
+      `<strong>M${e.mag.toFixed(1)}</strong><br>` +
+      `${e.time.toISOString().slice(0,10)}<br>` +
+      `Depth: ${e.depth.toFixed(1)} km<br>` +
+      `${e.place}`
+    ).addTo(map);
+    circles.push(c);
+  });
+
+  document.getElementById('shown-count').textContent = filtered.length.toLocaleString();
+}
+
+function buildOmoriChart(events) {
+  const mainshockTime = new Date('2019-07-06T03:19:53Z').getTime();
+  const after = events.filter(e => e.days > 0 && e.mag >= 1.5);
+
+  // Bin by day
+  const bins = {};
+  after.forEach(e => {
+    const d = Math.floor(e.days);
+    bins[d] = (bins[d] || 0) + 1;
+  });
+  const days = Object.keys(bins).map(Number).sort((a,b)=>a-b);
+  const counts = days.map(d => bins[d]);
+
+  Plotly.newPlot('omori-chart', [{
+    x: days, y: counts, type: 'bar',
+    marker: { color: '#58a6ff', opacity: 0.7 },
+    name: 'Daily count',
+  }], {
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    margin: { t: 5, b: 35, l: 40, r: 10 },
+    xaxis: { title: 'Days after mainshock', color: '#8b949e', gridcolor: '#21262d', titlefont: { size: 10 } },
+    yaxis: { title: 'Events/day', color: '#8b949e', gridcolor: '#21262d', titlefont: { size: 10 } },
+    font: { color: '#8b949e', size: 10 },
+    showlegend: false,
+  }, { responsive: true, displayModeBar: false });
+}
+
+function buildDepthChart(events) {
+  const depths = events.map(e => e.depth).filter(d => d >= 0 && d <= 30);
+  Plotly.newPlot('depth-chart', [{
+    x: depths, type: 'histogram',
+    nbinsx: 30,
+    marker: { color: '#f78166', opacity: 0.75 },
+  }], {
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    margin: { t: 5, b: 35, l: 40, r: 10 },
+    xaxis: { title: 'Depth (km)', color: '#8b949e', gridcolor: '#21262d', range:[0,30], titlefont:{size:10} },
+    yaxis: { title: 'Count', color: '#8b949e', gridcolor: '#21262d', titlefont:{size:10} },
+    font: { color: '#8b949e', size: 10 },
+    showlegend: false,
+  }, { responsive: true, displayModeBar: false });
+}
+
+// ── Controls ─────────────────────────────────────────────────────────────────
+document.getElementById('mag-slider').addEventListener('input', function() {
+  document.getElementById('mag-val').textContent = this.value;
+  renderMap(allEvents);
+});
+document.getElementById('color-mode').addEventListener('change', () => renderMap(allEvents));
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const features = await fetchCatalog();
+    allEvents = parseEvents(features);
+    document.getElementById('total-count').textContent = allEvents.length.toLocaleString();
+    document.getElementById('loading').style.display = 'none';
+    renderMap(allEvents);
+    buildOmoriChart(allEvents);
+    buildDepthChart(allEvents);
+  } catch (err) {
+    document.getElementById('loading').innerHTML =
+      `<h2 style="color:#f85149">Error loading data</h2><p>${err.message}</p>`;
+  }
+})();
+</script>
+</body>
+</html>
